@@ -1,96 +1,208 @@
 import networkx as nx
 import numpy as np
-import pandas as pd
 import os
+import pandas as pd
+from PIL import Image
 from tqdm import tqdm
+from collections import defaultdict
 
-data_dir = 'data'
+DATA_DIR = "data"
+DEMANDS_IN_REQUEST_SET = 1000
 
-functions = [
-    ("average_node_connectivity", nx.average_node_connectivity),
-    ("degree_assortativity_coefficient", nx.degree_assortativity_coefficient),
-    ("degree_pearson_correlation_coefficient", nx.degree_pearson_correlation_coefficient),
-    ("density", nx.density),
-    ("edge_connectivity", nx.edge_connectivity),
-    ("flow_hierarchy", nx.flow_hierarchy),
-    ("global_reaching_centrality", nx.global_reaching_centrality),
-    ("is_aperiodic", nx.is_aperiodic),
-    ("is_attracting_component", nx.is_attracting_component),
-    ("is_multigraphical", nx.is_multigraphical),
-    ("is_pseudographical", nx.is_pseudographical),
-    ("is_semiconnected", nx.is_semiconnected),
-    ("is_strongly_connected", nx.is_strongly_connected),
-    ("is_weakly_connected", nx.is_weakly_connected),
-    ("node_connectivity", nx.node_connectivity),
-    ("number_attracting_components", nx.number_attracting_components),
-    ("number_of_edges", nx.number_of_edges),
-    ("number_of_isolates", nx.number_of_isolates),
-    ("number_of_nodes", nx.number_of_nodes),
-    ("number_strongly_connected_components", nx.number_strongly_connected_components),
-    ("number_weakly_connected_components", nx.number_weakly_connected_components),
-    ("overall_reciprocity", nx.overall_reciprocity),
-    ("reciprocity", nx.reciprocity),
-    ("s_metric", nx.s_metric),
-    ("wiener_index", nx.wiener_index),
-]
+TARGETS = ["avg_transceivers", "max_transceivers", "sum_slots", "avg_max_slot"]
 
-# name, nodes, request-sets
+# topology_name, n_nodes, n_request_sets
 topologies = [
-    ('euro28', 28, 100, 1000),
-    ('us26', 26, 100, 1000),
+    ("euro28", 28, 100),
+    ("us26", 26, 100),
 ]
 
-rows = []
+n_requests_config = [
+    100,
+    125,
+    150,
+    175,
+    200,
+    225,
+    250,
+    275,
+    300,
+    325,
+    350,
+    375,
+    400,
+    425,
+    450,
+    475,
+    500,
+    525,
+    550,
+    575,
+    600,
+    625,
+    650,
+]
+
+stat_functions = [np.mean, np.std, np.median, np.var, np.min, np.max, np.sum]
+stat_functions_name = [fn.__name__ for fn in stat_functions]
+
+graph_functions = [
+    nx.average_node_connectivity,
+    nx.degree_assortativity_coefficient,
+    nx.degree_pearson_correlation_coefficient,
+    nx.density,
+    nx.edge_connectivity,
+    nx.flow_hierarchy,
+    nx.global_reaching_centrality,
+    nx.has_eulerian_path,
+    nx.is_aperiodic,
+    nx.is_arborescence,
+    nx.is_attracting_component,
+    nx.is_bipartite,
+    nx.is_branching,
+    nx.is_directed_acyclic_graph,
+    nx.is_eulerian,
+    nx.is_forest,
+    nx.is_graphical,
+    nx.is_multigraphical,
+    nx.is_planar,
+    nx.is_pseudographical,
+    nx.is_regular,
+    nx.is_semiconnected,
+    nx.is_semieulerian,
+    nx.is_strongly_connected,
+    nx.is_tree,
+    nx.is_triad,
+    nx.is_valid_degree_sequence_erdos_gallai,
+    nx.is_valid_degree_sequence_havel_hakimi,
+    nx.is_weakly_connected,
+    nx.is_weighted,
+    nx.min_cost_flow_cost,
+    nx.node_connectivity,
+    nx.number_attracting_components,
+    nx.number_of_edges,
+    nx.number_of_isolates,
+    nx.number_of_nodes,
+    nx.number_of_selfloops,
+    nx.number_strongly_connected_components,
+    nx.number_weakly_connected_components,
+    nx.overall_reciprocity,
+    nx.reciprocity,
+    nx.s_metric,
+    nx.wiener_index,
+]
+
+graph_functions_name = [fn.__name__ for fn in graph_functions]
+
+def img_from_array(arr):
+    return Image.fromarray(np.uint8(arr * 255.0 / arr.max()))
+
+
+def parse_demands_file(file_path):
+    with open(file_path, "r") as fp:
+        line = fp.readline()
+        if line.startswith("#"):
+            line = fp.readline()
+        src = int(line.rstrip())
+        dst = int(fp.readline().rstrip())
+        cat = fp.readline().rstrip()
+        requests = np.asarray([line.rstrip() for line in fp]).astype(float)
+
+    return src, dst, cat, requests
+
 
 for topology in topologies:
-    topology_name, n_nodes, n_request_sets, n_demands = topology
+    topology_name, n_nodes, n_request_sets = topology
 
-    for request_set_id in tqdm(range(n_request_sets)):
-        request_set_path = os.path.join(data_dir, topology_name, f"request-set-{request_set_id}")
+    raw_tables = defaultdict(list)
+    stat_tables = defaultdict(lambda: defaultdict(list))
+    graph_raw_conn_tables = defaultdict(list)
+    graph_raw_mean_tables = defaultdict(list)
+    graph_mdg_stats_tables = defaultdict(list)
+    graph_dg_stats_tables = defaultdict(list)
+
+    for request_set_id in tqdm(range(n_request_sets), desc=topology_name):
+        request_set_path = os.path.join(
+            DATA_DIR, topology_name, f"request-set-{request_set_id}"
+        )
+
+        results = pd.read_csv(
+            os.path.join(request_set_path, "results.csv"), index_col=0
+        )
+
         demands_path = os.path.join(request_set_path, f"demands_{request_set_id}")
+        demands = [
+            parse_demands_file(os.path.join(demands_path, f"{i}.txt"))
+            for i in range(DEMANDS_IN_REQUEST_SET)
+        ]
 
-        demands = []
-        for i in range(n_demands):
-            with open(os.path.join(demands_path, f"{i}.txt"), 'r') as fp:
-                line = fp.readline()
-                if line.startswith('#'):
-                    line = fp.readline()
+        demands_raw = np.stack([demand[-1] for demand in demands], axis=0)
 
-                src = int(line.rstrip())
-                dst = int(fp.readline().rstrip())
-                cat = fp.readline().rstrip()
-                requests = np.asarray([line.rstrip() for line in fp]).astype(float)
+        for n_requests in n_requests_config:
+            # raw_tables[n_requests].append([*demands_raw[:n_requests].ravel(), *results.loc[n_requests][TARGETS]])
 
-            demands.append((src, dst, cat, requests))
+            # Stat Features
+            demands_stats = np.stack(
+                [fn(demands_raw[:n_requests], axis=1) for fn in stat_functions], axis=1
+            )
 
-        results = pd.read_csv(os.path.join(request_set_path, 'results.csv'))
+            for stat_i, stat_name in enumerate(stat_functions_name):
+                stat_tables[n_requests][stat_name].append([*demands_stats[:, stat_i].ravel(), *results.loc[n_requests][TARGETS]])
 
-        for r in tqdm(results.iterrows(), total=23, leave=False):
-            request_set_features = r[1].to_dict()
+            mdg = nx.MultiDiGraph()
+            mdg.add_nodes_from(range(0, n_nodes))
+            mdg.add_edges_from(
+                [
+                    (src, dst, dict(zip(stat_functions_name, stats)))
+                    for (src, dst, _, _), stats in zip(
+                        demands[:n_requests], demands_stats[:n_requests]
+                    )
+                ]
+            )
 
-            G = nx.MultiDiGraph()
-            G.add_nodes_from(range(0, n_nodes))
+            graph_raw_conn = nx.to_numpy_array(mdg)
+            graph_raw_conn_tables[n_requests].append([*graph_raw_conn.ravel(), *results.loc[n_requests][TARGETS]])
 
-            # górna granica z pliku results, albo definiujemy globalnie.
-            for demand in demands[:int(request_set_features["n_requests"])]:
-                src, dst, cat, requests = demand
-                G.add_edge(src, dst, cat=cat, requests=requests)
+            graph_raw_weighted = nx.to_numpy_array(mdg, weight="mean")
+            graph_raw_mean_tables[n_requests].append([*graph_raw_weighted.ravel(), *results.loc[n_requests][TARGETS]])
 
-            graph_features = {}
+            graph_mdg_stats_tables[n_requests].append([*[fn(mdg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
 
-            for fn_name, fn in functions:
-                graph_features[fn_name] = fn(G)
+            dg = nx.DiGraph(graph_raw_weighted)
+            graph_dg_stats_tables[n_requests].append([*[fn(dg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
 
-            row = {
-                **{"topology": topology_name},
-                **request_set_features,
-                **graph_features
-            }
-            rows.append(row)
+        # # Make demands image
+        # img = img_from_array(demands_raw)
+        # img.save(
+        #     os.path.join(
+        #         "images", "demands", f"{topology_name}-{request_set_id:03}.png"
+        #     )
+        # )
 
-df = pd.DataFrame(rows)
-df.to_csv('data.csv', index=False)
+    # Store Tables
+    datasets_dir = os.path.join("datasets", topology_name)
 
+    for n_requests in n_requests_config:
+        # table = pd.DataFrame(raw_tables[n_requests])
+        # n_features = table.shape[1] - len(TARGETS)
+        # table.to_csv(os.path.join(datasets_dir, f"raw-{n_requests}.csv"), index=False, header=[*range(n_features), *TARGETS])
 
+        for stat in stat_functions_name:
+            table = pd.DataFrame(stat_tables[n_requests][stat])
+            table.to_csv(os.path.join(datasets_dir, f"{stat}-{n_requests}.csv"), index=False, header=[*range(n_requests), *TARGETS])
 
+        table = pd.DataFrame(graph_raw_conn_tables[n_requests])
+        n_features = n_nodes * n_nodes
+        table.to_csv(os.path.join(datasets_dir, f"graph_raw_conn-{n_requests}.csv"), index=False, header=[*range(n_features), *TARGETS])
 
+        table = pd.DataFrame(graph_raw_mean_tables[n_requests])
+        n_features = n_nodes * n_nodes
+        table.to_csv(os.path.join(datasets_dir, f"graph_raw_mean-{n_requests}.csv"), index=False, header=[*range(n_features), *TARGETS])
+
+        table = pd.DataFrame(graph_mdg_stats_tables[n_requests])
+        n_features = len(graph_functions)
+        table.to_csv(os.path.join(datasets_dir, f"graph_stat_mdg-{n_requests}.csv"), index=False, header=[*graph_functions_name, *TARGETS])
+
+        table = pd.DataFrame(graph_dg_stats_tables[n_requests])
+        n_features = len(graph_functions)
+        table.to_csv(os.path.join(datasets_dir, f"graph_stat_dg-{n_requests}.csv"), index=False, header=[*graph_functions_name, *TARGETS])

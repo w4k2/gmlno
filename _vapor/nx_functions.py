@@ -9,8 +9,7 @@ rs = np.random.RandomState(50210)
 
 G = nx.MultiDiGraph()
 G.add_nodes_from(range(0, 10))
-# weights = rs.random(20)
-# nx.set_edge_attributes(G, values = weights, name = 'weight')
+G.add_weighted_edges_from([(a, b, c) for (a, b), c in zip(rs.randint(0, 10, size=(10, 2)), rs.rand(10))])
 
 nx.draw_kamada_kawai(G)
 plt.savefig("foo.png")
@@ -27,6 +26,7 @@ for fn in getmembers(nx):
         pass
     else:
         if isinstance(ret, numbers.Number):
+        # if isinstance(ret, list):
             print(fn[0])
             # print('+', ret)
         else:
