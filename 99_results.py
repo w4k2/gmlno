@@ -3,6 +3,13 @@ import scipy.stats as stats
 from tqdm import tqdm
 import numpy as np
 import pickle
+from sklearn.preprocessing import LabelEncoder
+
+
+le = LabelEncoder()
+
+
+
 # analiza statystyczna, tabele
 
 results = pd.read_csv('01_experiment_results.csv')
@@ -23,6 +30,8 @@ representation = [
     'var',
 ]
 
+le.fit(representation)
+
 n_requests = [
     100, 125, 150, 175,
     200, 225, 250, 275,
@@ -39,51 +48,51 @@ metrics = [
 ]
 
 
-# data1 = [1,1,1,1,1,1,1,1]
-# data2 = [1,1,1,1,1,2,2,2]
-
-# print(stats.ranksums(data2, data1))
-
-targets = ['avg_transceivers', 'max_transceivers', 'sum_slots', 'avg_max_slot']
+targets = [
+    'avg_transceivers',
+    'max_transceivers',
+    'sum_slots',
+    'avg_max_slot'
+]
 statistical_significance = {}
 mean_data = {}
 
-n_components = len(topologies) * len(n_requests) * len(metrics) * len(targets) * len(representation) * (len(representation) - 1)
-p_bar = tqdm(range(n_components), desc='Progress')
+# n_components = len(topologies) * len(n_requests) * len(metrics) * len(targets) * len(representation) * (len(representation) - 1)
+# p_bar = tqdm(range(n_components), desc='Progress')
 
-for top in topologies:
-    for nr in n_requests:
-        for metric in metrics:
-            for target in targets:
-                for rep1 in representation:
-                    better = []
-                    data1 = results[(results['topology'] == top) & (results['representation'] == rep1) & (results['n_requests'] == nr) & (results['target'] == target)]
-                    mask = data1.columns.str.contains(f'{metric}_*')
-                    data1 = data1.loc[:, mask].values[0]
+# for top in topologies:
+#     for nr in n_requests:
+#         for metric in metrics:
+#             for target in targets:
+#                 for rep1 in representation:
+#                     better = []
+#                     data1 = results[(results['topology'] == top) & (results['representation'] == rep1) & (results['n_requests'] == nr) & (results['target'] == target)]
+#                     mask = data1.columns.str.contains(f'{metric}_*')
+#                     data1 = data1.loc[:, mask].values[0]
 
-                    mean_data[(top, nr, metric, target, rep1)] = (np.mean(data1), np.std(data1))
+#                     mean_data[(top, nr, metric, target, rep1)] = (np.mean(data1), np.std(data1))
 
-                    for rep2 in representation:
-                        if rep1 == rep2:
-                            continue
-                        # print(metric)
+#                     for rep2 in representation:
+#                         if rep1 == rep2:
+#                             continue
+#                         # print(metric)
                         
 
-                        data2 = results[(results['topology'] == top) & (results['representation'] == rep2) & (results['n_requests'] == nr) & (results['target'] == target)]
-                        mask = data2.columns.str.contains(f'{metric}_*')
-                        data2 = data2.loc[:, mask].values[0]
+#                         data2 = results[(results['topology'] == top) & (results['representation'] == rep2) & (results['n_requests'] == nr) & (results['target'] == target)]
+#                         mask = data2.columns.str.contains(f'{metric}_*')
+#                         data2 = data2.loc[:, mask].values[0]
                         
-                        res = stats.ranksums(data1, data2)
-                        if res.pvalue < 0.05:
-                            if res.statistic > 0:
-                                better.append(rep2)
+#                         res = stats.ranksums(data1, data2)
+#                         if res.pvalue < 0.05:
+#                             if res.statistic > 0:
+#                                 better.append(rep2)
 
-                        p_bar.update(1)
-                    if better:
-                        statistical_significance[(top, nr, metric, target, rep1)] = better
+#                         p_bar.update(1)
+#                     if better:
+#                         statistical_significance[(top, nr, metric, target, rep1)] = better
 
-pickle.dump(statistical_significance, open('statistical_significance.pkl', 'wb'))
-pickle.dump(mean_data, open('mean_data.pkl', 'wb'))
+# pickle.dump(statistical_significance, open('statistical_significance.pkl', 'wb'))
+# pickle.dump(mean_data, open('mean_data.pkl', 'wb'))
 
 statistical_significance = pickle.load(open('statistical_significance.pkl', 'rb'))
 mean_data = pickle.load(open('mean_data.pkl', 'rb'))
@@ -105,29 +114,48 @@ for idx, metric in enumerate(metrics):
         
         table += '''
         \\centering
-        \\resizebox{\columnwidth}{!}{%
+        \\resizebox*{!}{\\linewidth}{%
         \\begin{tabular}{
         '''
 
-        table += 'cc'+'c' * (len(representation)) + '} \\hline \n'
+        table += 'cc'+'c' * (len(representation)) + '} \\toprule \n'
 
         table += ' topology & n requests '
         for rep in representation:
             table += f'& {rep.replace("_","-")} '
 
-        table += '\\\\ \\hline\n '
+        table += '\\\\ \\toprule\n '
 
 
         for top in topologies:
-            for nr in n_requests:
+            for kdx, nr in enumerate(n_requests):
                 if nr == 350:
-                    table += '\\multirow{4}{*}{'+top+'}'+f'& {nr}'
+                    table += ' \\multirow{4}{*}{'+top+'}'+' & \multirow{2}{*}{'+str(nr)+'}'
                 else:
-                    table += f' & {nr}'
+                    table += ' & \multirow{2}{*}{'+str(nr)+'}'
+                    # table += f' & {nr}'
+                
                 for rep in representation:
-                    table += f'& {mean_data[(top, nr, metric, target, rep)][0]:.2f} $\\pm$ {mean_data[(top, nr, metric, target, rep)][1]:.2f}'
+                    if (top, nr, metric, target, rep) in statistical_significance.keys():
+                        if kdx % 2 == 0:
+                            table += f'& \\textit{{ {str(le.transform(statistical_significance[(top, nr, metric, target, rep)]))[1:-1]} }}'
+                        else:
+                            table += f'& \cellcolor[HTML]{{EFEFEF}} \\textit{{ {str(le.transform(statistical_significance[(top, nr, metric, target, rep)]))[1:-1]} }}'
+                    else:
+                        if kdx % 2 == 0:
+                            table += '& '
+                        else:
+                            table += '& \cellcolor[HTML]{EFEFEF} '
+
+                table += ' \\\\ \n'
+                table += ' & ' 
+                for rep in representation:
+                    if kdx % 2 == 0:
+                        table += f'& {mean_data[(top, nr, metric, target, rep)][0]:.2f} $\\pm$ {mean_data[(top, nr, metric, target, rep)][1]:.2f}'
+                    else:
+                        table += f'& \cellcolor[HTML]{{EFEFEF}} {mean_data[(top, nr, metric, target, rep)][0]:.2f} $\\pm$ {mean_data[(top, nr, metric, target, rep)][1]:.2f}'
                 if nr == 650:
-                    table += ' \\\\ \\hline \n'
+                    table += ' \\\\ \\midrule \n'
                 else:
                     table += ' \\\\ \n'
                     # table += ' \\\\ \\cline{2-13} \n'
@@ -137,6 +165,7 @@ for idx, metric in enumerate(metrics):
                     # print(f'{top}, {nr}, {metric}, {target}, {rep}: {mean_data[(top, nr, metric, target, rep)]}')
 
         table += '''
+        \\bottomrule
         \\end{tabular}%
         }
 
