@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neural_network import MLPRegressor
 from sklearn.tree import DecisionTreeRegressor
 
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score
 from tqdm import tqdm
 from aobt import aobt
 
@@ -21,7 +21,7 @@ representation = [
 ]
 
 metrics = [
-    ('mse', mean_squared_error),
+    ('mae', mean_absolute_error),
     ('r2', r2_score),
     ('aobt', aobt),
 ]
@@ -78,4 +78,4 @@ for top in topologies:
             results.append({**config, **scores})
 
 results_df = pd.DataFrame(results)
-results_df.to_csv("04_experiment_results.csv", index=False)
+results_df.to_csv("04_graph_results.csv", index=False)

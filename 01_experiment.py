@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neural_network import MLPRegressor
 from sklearn.tree import DecisionTreeRegressor
 
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score
 from tqdm import tqdm
 from aobt import aobt
 import os
@@ -37,7 +37,7 @@ n_requests = [
 ]
 
 metrics = [
-    ('mse', mean_squared_error),
+    ('mae', mean_absolute_error),
     ('r2', r2_score),
     ('aobt', aobt),
 ]
@@ -49,7 +49,7 @@ rkf = RepeatedKFold(n_splits=5, n_repeats=5, random_state=50372)
 
 results = []
 
-n_components = len(topologies) * len(representation) * len(n_requests) * len(metrics) * rkf.get_n_splits()
+n_components = len(topologies) * len(representation) * len(n_requests) * len(targets) * rkf.get_n_splits()
 p_bar = tqdm(range(n_components), desc="Progress")
 
 for top in topologies:
