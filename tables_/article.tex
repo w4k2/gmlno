@@ -1,10 +1,44 @@
 \documentclass[a4paper]{article}
 \usepackage[a4paper,margin=1cm]{geometry}
 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amsfonts}
+\usepackage{algorithmic}
+\usepackage{array}
+\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{colortbl}
+\usepackage{makecell}
+\usepackage{tabularx}
+\usepackage{multirow}
+\renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=blue,
+	citecolor=blue
+}
+
+\hyphenation{op-tical net-works semi-conduc-tor mo-dern de-ve-lo-ping}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\usepackage{balance}
+
+% 
 \usepackage{multirow}
 \usepackage{booktabs}
 \usepackage{graphics}
-\usepackage[table,xcdraw]{xcolor}
+\usepackage[dvipsnames,table,xcdraw]{xcolor}
+
+\usepackage[commandnameprefix=ifneeded, authormarkupposition=left]{changes}
 
 \begin{document}
 
