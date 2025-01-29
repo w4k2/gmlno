@@ -5,11 +5,22 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 from collections import defaultdict
+import time
 
 DATA_DIR = "data"
 DEMANDS_IN_REQUEST_SET = 1000
 
 TARGETS = ["avg_transceivers", "max_transceivers", "sum_slots", "avg_max_slot"]
+
+timeit_storage = []
+
+def timeit(fn, meta, *args, **kw_args):
+    s_time = time.process_time()
+    ret = fn(*args, **kw_args)
+    fn_time = time.process_time() - s_time
+    print(fn_time)
+    timeit_storage.append({"fn_name": fn.__name__, **meta, "time": fn_time})
+    return ret
 
 # topology_name, n_nodes, n_request_sets
 topologies = [
@@ -97,6 +108,12 @@ for topology in topologies:
         demands_raw = np.stack([demand[-1] for demand in demands], axis=0)
 
         for n_requests in n_requests_config:
+            timeit_meta = {
+                "topology": topology_name,
+                "request_id": request_set_id,
+                "n_requests": n_requests
+            }
+
             # raw_tables[n_requests].append([*demands_raw[:n_requests].ravel(), *results.loc[n_requests][TARGETS]])
 
             # Stat Features
@@ -107,6 +124,7 @@ for topology in topologies:
             for stat_i, stat_name in enumerate(stat_functions_name):
                 stat_tables[n_requests][stat_name].append([*demands_stats[:, stat_i].ravel(), *results.loc[n_requests][TARGETS]])
 
+            s_time = time.process_time()
             mdg = nx.MultiDiGraph()
             mdg.add_nodes_from(range(0, n_nodes))
             mdg.add_edges_from(
@@ -124,10 +142,10 @@ for topology in topologies:
             graph_raw_weighted = nx.to_numpy_array(mdg, weight="mean")
             graph_raw_mean_tables[n_requests].append([*graph_raw_weighted.ravel(), *results.loc[n_requests][TARGETS]])
 
-            graph_mdg_stats_tables[n_requests].append([*[fn(mdg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
+            graph_mdg_stats_tables[n_requests].append([*[timeit(fn,{**timeit_meta, "graph": "mdg"}, mdg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
 
             dg = nx.DiGraph(graph_raw_weighted)
-            graph_dg_stats_tables[n_requests].append([*[fn(dg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
+            graph_dg_stats_tables[n_requests].append([*[timeit(fn,{**timeit_meta, "graph": "dg"}, dg) for fn in graph_functions], *results.loc[n_requests][TARGETS]])
 
         # # Make demands image
         # img = img_from_array(demands_raw)
@@ -164,3 +182,7 @@ for topology in topologies:
         table = pd.DataFrame(graph_dg_stats_tables[n_requests])
         n_features = len(graph_functions)
         table.to_csv(os.path.join(datasets_dir, f"graph_stat_dg-{n_requests}.csv"), index=False, header=[*graph_functions_name, *TARGETS])
+
+
+df = pd.DataFrame(timeit_storage)
+df.to_csv("00_times.csv")
