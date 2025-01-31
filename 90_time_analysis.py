@@ -148,5 +148,6 @@ ax.legend(loc='center left', bbox_to_anchor=(1.1, 0.47), fontsize=8)
 
 plt.tight_layout()
 plt.savefig(f"00_times.png")
+plt.savefig(f"00_times.pdf")
 plt.close()
 plt.clf()
