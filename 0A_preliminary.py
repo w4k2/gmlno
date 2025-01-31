@@ -47,7 +47,7 @@ targets = [
 
 base_regrssors = [
     SVR(),
-    MLPRegressor(),
+    MLPRegressor(max_iter=2000),
     DecisionTreeRegressor(),
     KNeighborsRegressor(),
 ]
@@ -121,4 +121,4 @@ for top in topologies:
                     results.append({**config, "regressor": type(model).__name__ ,**scores})
 
 results_df = pd.DataFrame(results)
-results_df.to_csv("0A_results.csv", index=False)
+results_df.to_csv("0A_preliminary_results.csv", index=False)

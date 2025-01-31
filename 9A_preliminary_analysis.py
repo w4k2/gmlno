@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tabulate import tabulate
 
-df = pd.read_csv("0A_results.csv")
+df = pd.read_csv("0A_preliminary_results.csv")
 
 n_splits = 10
 topology = "euro28"
@@ -47,7 +47,6 @@ for metric in metrics:
     df = df.drop([mean_name, std_name], axis=1)
 
 
-# print(df.pivot(index=["representation, n_requests"], columns="mae_str"))
-
 print(tabulate(df, tablefmt='grid', headers=df.columns))
+df.to_csv('0A_mean.csv')
 
